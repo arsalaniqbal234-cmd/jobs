@@ -52,6 +52,27 @@ async def create_job(job: JobCreate, db: Session = Depends(get_db)):
     db.refresh(new_job)
     return new_job
 
+@app.post("/scrape")
+async def scrape_jobs(db: Session = Depends(get_db)):
+    url = "https://remoteok.com/api"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
+    data = response.json()
+
+    jobs_data = data[1:]  # pehla item legal/meta info hota hai, skip karo
+
+    count = 0
+    for job in jobs_data[:20]:
+        title = job.get("position", "Unknown")
+        company = job.get("company", "Unknown")
+
+        new_job = JobModel(title=title, company=company, salary=0)
+        db.add(new_job)
+        count += 1
+
+    db.commit()
+    return {"message": f"{count} jobs scraped and saved!"}
+
 
 @app.get("/jobs")
 async def get_jobs(db: Session = Depends(get_db)):
