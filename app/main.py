@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -98,6 +98,7 @@ async def scrape_jobs(db: Session = Depends(get_db)):
         source_id = str(job.get("id"))
         title = job.get("position", "Unknown")
         company = job.get("company", "Unknown")
+        job_url = job.get("url", "")
 
         existing = db.query(JobModel).filter(JobModel.source_id == source_id).first()
 
@@ -105,7 +106,13 @@ async def scrape_jobs(db: Session = Depends(get_db)):
             skipped_count += 1
             continue
 
-        new_job = JobModel(source_id=source_id, title=title, company=company, salary=0)
+        new_job = JobModel(
+            source_id=source_id,
+            title=title,
+            company=company,
+            salary=0,
+            url=job_url
+        )
         db.add(new_job)
         added_count += 1
 
@@ -113,7 +120,6 @@ async def scrape_jobs(db: Session = Depends(get_db)):
     return {
         "message": f"{added_count} new jobs added, {skipped_count} duplicates skipped"
     }
-
     
 
 
@@ -125,3 +131,14 @@ async def get_jobs(
     jobs = db.query(JobModel).all()
 
     return jobs
+
+
+
+
+
+@app.get("/jobs/{job_id}")
+async def get_job(job_id: int, db: Session = Depends(get_db)):
+    job = db.query(JobModel).filter(JobModel.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job

@@ -1,3 +1,4 @@
+
 @app.post("/scrape")
 async def scrape_jobs(db: Session = Depends(get_db)):
     url = "https://remoteok.com/api"
@@ -14,15 +15,21 @@ async def scrape_jobs(db: Session = Depends(get_db)):
         source_id = str(job.get("id"))
         title = job.get("position", "Unknown")
         company = job.get("company", "Unknown")
+        job_url = job.get("url", "")
 
-        # Check karo yeh job pehle se hai kya
         existing = db.query(JobModel).filter(JobModel.source_id == source_id).first()
 
         if existing:
             skipped_count += 1
             continue
 
-        new_job = JobModel(source_id=source_id, title=title, company=company, salary=0)
+        new_job = JobModel(
+            source_id=source_id,
+            title=title,
+            company=company,
+            salary=0,
+            url=job_url
+        )
         db.add(new_job)
         added_count += 1
 

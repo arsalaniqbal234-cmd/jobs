@@ -9,3 +9,4 @@ class Job(Base):
     title = Column(String, index=True)
     company = Column(String)
     salary = Column(Integer)
+    url = Column(String, nullable=True)
