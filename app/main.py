@@ -13,7 +13,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "https://jobsi-ten.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,51 +84,37 @@ async def create_job(
 
 @app.post("/scrape")
 async def scrape_jobs(db: Session = Depends(get_db)):
-
     url = "https://remoteok.com/api"
-
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-
-    response = requests.get(
-        url,
-        headers=headers
-    )
-
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
     data = response.json()
 
     jobs_data = data[1:]
 
-    count = 0
+    added_count = 0
+    skipped_count = 0
 
     for job in jobs_data[:20]:
+        source_id = str(job.get("id"))
+        title = job.get("position", "Unknown")
+        company = job.get("company", "Unknown")
 
-        title = job.get(
-            "position",
-            "Unknown"
-        )
+        existing = db.query(JobModel).filter(JobModel.source_id == source_id).first()
 
-        company = job.get(
-            "company",
-            "Unknown"
-        )
+        if existing:
+            skipped_count += 1
+            continue
 
-        new_job = JobModel(
-            title=title,
-            company=company,
-            salary=0
-        )
-
+        new_job = JobModel(source_id=source_id, title=title, company=company, salary=0)
         db.add(new_job)
-        count += 1
-
+        added_count += 1
 
     db.commit()
-
     return {
-        "message": f"{count} jobs scraped and saved!"
+        "message": f"{added_count} new jobs added, {skipped_count} duplicates skipped"
     }
+
+    
 
 
 @app.get("/jobs")
