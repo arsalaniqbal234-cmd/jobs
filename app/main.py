@@ -45,11 +45,17 @@ async def get_user(user_id: int):
 
 
 @app.get("/search")
-async def search(keyword: str, limit: int = 10):
-    return {
-        "keyword": keyword,
-        "limit": limit
-    }
+async def search(keyword: str, limit: int = 10, db: Session = Depends(get_db)):
+    results = (
+        db.query(JobModel)
+        .filter(
+            (JobModel.title.ilike(f"%{keyword}%")) |
+            (JobModel.company.ilike(f"%{keyword}%"))
+        )
+        .limit(limit)
+        .all()
+    )
+    return results
 
 
 class JobCreate(BaseModel):
